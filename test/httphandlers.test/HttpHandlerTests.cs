@@ -91,6 +91,24 @@ public class HttpHandlerTests
         Assert.Equal(DefaultResponse, result);
     }
 
+    [Fact]
+    public async void HandlerInModules()
+    {
+        // Arrange
+        using var host = await CreateTestHost(builder: services =>
+        {
+            services.AddHttpApplication(options => options.RegisterModule<MyModule>());
+        });
+
+        using var client = host.GetTestClient();
+
+        // Act
+        var result = await client.GetStringAsync("/handler");
+
+        // Assert
+        Assert.Equal(DefaultResponse, result);
+    }
+
     private Task<IHost> CreateTestHost(Action<IApplicationBuilder>? middleware = null, Action<ISystemWebAdapterBuilder>? builder = null)
     {
         return Host.CreateDefaultBuilder()
@@ -142,6 +160,27 @@ public class HttpHandlerTests
         public override Task ProcessRequestAsync(HttpContext context)
         {
             return context.Response.Output.WriteAsync(DefaultResponse);
+        }
+    }
+
+    private sealed class MyModule : IHttpModule
+    {
+        public void Dispose()
+        {
+        }
+
+        public void Init(HttpApplication application)
+        {
+            application.MapRequestHandler += (sender, o) =>
+            {
+                if (sender is HttpApplication { Context: { } context })
+                {
+                    if (context.Request.Path == "/handler")
+                    {
+                        context.Handler = new Handler();
+                    }
+                }
+            };
         }
     }
 }
