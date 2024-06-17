@@ -33,6 +33,16 @@ app.UseSystemWebAdapters();
 app.MapHttpHandlers();
 
 app.Run();
+
+sealed class Handler : IHttpHandler
+{
+    public bool IsReusable => true;
+
+    public void ProcessRequest(HttpContext context)
+    {
+        context.Response.Write("Hello world!");
+    }
+}
 ```
 
 ### Set handlers for a route
@@ -54,6 +64,16 @@ app.UseSystemWebAdapters();
 app.MapHttpHandlers();
 
 app.Run();
+
+sealed class Handler : IHttpHandler
+{
+    public bool IsReusable => true;
+
+    public void ProcessRequest(HttpContext context)
+    {
+        context.Response.Write("Hello world!");
+    }
+}
 ```
 
 ### Set handlers in a module
@@ -94,6 +114,16 @@ private sealed class MyModule : IHttpModule
                 }
             }
         };
+    }
+}
+
+sealed class Handler : IHttpHandler
+{
+    public bool IsReusable => true;
+
+    public void ProcessRequest(HttpContext context)
+    {
+        context.Response.Write("Hello world!");
     }
 }
 ```
