@@ -16,9 +16,15 @@ internal sealed class HttpHandlerEndpointFactory : IHttpHandlerEndpointFactory
     // (i.e. they may be create on demand, so would end up not being cached long, but they also
     // be created once, cached somewhere, and reused multiple times)
     private readonly ConditionalWeakTable<IHttpHandler, Endpoint> _table = new();
+    private readonly RequestDelegate _defaultHandlerDelegate;
 
     Endpoint IHttpHandlerEndpointFactory.Create(IHttpHandler handler)
         => handler.IsReusable ? UseCache(handler) : Create(handler);
+
+    public HttpHandlerEndpointFactory(IServiceProvider services)
+    {
+        _defaultHandlerDelegate = services.BuildDefaultHandlerDelegate();
+    }
 
     private Endpoint UseCache(IHttpHandler handler)
     {
@@ -34,9 +40,13 @@ internal sealed class HttpHandlerEndpointFactory : IHttpHandlerEndpointFactory
         return newEndpoint;
     }
 
-    private static Endpoint Create(IHttpHandler handler)
+    private Endpoint Create(IHttpHandler handler)
     {
-        var builder = new NonRouteEndpointBuilder();
+        var builder = new NonRouteEndpointBuilder
+        {
+            RequestDelegate = _defaultHandlerDelegate
+        };
+
         var metadata = HandlerMetadata.Create("/", handler);
 
         builder.AddHandler(metadata);

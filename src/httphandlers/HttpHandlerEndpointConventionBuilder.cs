@@ -1,13 +1,12 @@
 // MIT License.
 
-using System.Web;
-using System.Web.SessionState;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;
-using Microsoft.AspNetCore.SystemWebAdapters;
 using Microsoft.Extensions.Primitives;
+using System.Web;
+using System.Web.SessionState;
 
 namespace Swick.SystemWebAdapters.Extensions.HttpHandlers;
 
@@ -23,7 +22,7 @@ internal sealed class HttpHandlerEndpointConventionBuilder : EndpointDataSource,
         IServiceProvider services)
     {
         _managers = managers.ToArray();
-        _defaultHandler = BuildDefaultHandler(services);
+        _defaultHandler = services.BuildDefaultHandlerDelegate();
     }
 
     public override IReadOnlyList<Endpoint> Endpoints
@@ -75,7 +74,6 @@ internal sealed class HttpHandlerEndpointConventionBuilder : EndpointDataSource,
 
         foreach (var mappedRoute in mappedRoutes)
         {
-            // TODO should we log if we can't find it? It may be a race condition where the compilation hasn't found it yet, so it could be an unnecessary warning
             if (metadataCollection.TryGetValue(mappedRoute.Path, out var fromCollection) && fromCollection is [IHttpHandlerMetadata handler, ..])
             {
                 metadataCollection.Add(mappedRoute.Route, [.. fromCollection, new MappedHandlerMetadata(mappedRoute.Route, handler)]);
@@ -89,25 +87,6 @@ internal sealed class HttpHandlerEndpointConventionBuilder : EndpointDataSource,
         => (_conventions ??= []).Add(convention);
 
     public override IChangeToken GetChangeToken() => new CompositeChangeToken(_managers.Select(m => m.GetChangeToken()).ToArray());
-
-    private static RequestDelegate BuildDefaultHandler(IServiceProvider services)
-    {
-        var builder = new ApplicationBuilder(services);
-
-        builder.EnsureRequestEndThrows();
-        builder.Run(context =>
-        {
-            if (context.AsSystemWeb().CurrentHandler is { } handler)
-            {
-                return handler.RunHandlerAsync(context).AsTask();
-            }
-
-            context.Response.StatusCode = 500;
-            return context.Response.WriteAsync("Invalid handler");
-        });
-
-        return builder.Build();
-    }
 
     private sealed class MappedHandlerMetadata(string route, IHttpHandlerMetadata metadata) : IHttpHandlerMetadata
     {
